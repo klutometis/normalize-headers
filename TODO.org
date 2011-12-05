@@ -1,0 +1,66 @@
+* TODO Normalize columns
+  From Chun:
+
+  #+BEGIN_QUOTE
+  The general requirement is to convert a variety of column based
+  data-sets into a uniform column schema.
+
+  For example:
+
+  *original headers:*
+  factual_id,name,address,region
+
+  *target headers:*
+  factual_id,name,address,locality,region
+
+  If the column doesn't exist, just add an empty string.
+
+  uuid1,name1,address1,region1
+  becomes
+  uuid1,name1,address1,,region1
+
+  Requirements
+  - handle a variety of delimiters, e.g. csv,tsv
+    - should be able to take inputs of csv and tsv and output csv or tsv
+  - handle re-ordering of columns
+  - handle dropping of columns (although this should be rare)
+  - target and original headers should not be hard-coded
+    
+  This might be helpful:
+
+  https://svn.corp.factual.com/projects/cascalog_commons/src/cascalog_commons/
+  #+END_QUOTE
+
+  #+BEGIN_SRC clojure :tangle cascalog.clj :shebang #!/usr/bin/env clj
+    (use 'add-classpath.core)
+    
+    (add-classpath "lib/cascalog*")
+    (add-classpath "lib/hadoop-core*")
+    (add-classpath "lib/commons-logging*")
+    (add-classpath "lib/commons-codec*")
+    (add-classpath "lib/commons-httpclient*")
+    (add-classpath "lib/slf4j*")
+    (add-classpath "lib/debug*")
+    
+    (use 'debug.core)
+    (use 'cascalog.playground)
+    
+    (bootstrap)
+    (debug (?<- (stdout)
+                [?person ?age]
+                (age ?person ?age)
+                (< ?age 30))
+           (?<- (stdout) 
+                [!line]
+                ((hfs-textline "data.tab") !line)
+                (:distinct false)))
+  #+END_SRC
+* DONE Parse headers
+  CLOSED: [2011-12-05 Mon 11:48]
+  #+BEGIN_SRC clojure :tangle split.clj :shebang #!/usr/bin/env clj
+    (use 'clojure.string)
+    (use 'clojure.test)
+    
+    (is (= (split "harro,freunds" #",")
+           '["harro" "freunds"]))
+  #+END_SRC
