@@ -1,0 +1,12 @@
+#+TITLE: README
+
+Example usage:
+
+#+BEGIN_SRC sh
+  lein run \
+      -s normalized-data.tab \
+      -i factual_id,name,address,locality,postcode,country,tel,fax,website,latitude,longitude,category,status,email \
+      -o factual_id,non_existent_header,email \
+      --tab-delimited \
+      data.tab
+#+END_SRC
