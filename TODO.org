@@ -65,30 +65,20 @@
     ;;             ((hfs-textline "data.tab") !line)
     ;;             (:distinct false)))
     
-    (def headers->list
-      (λ [headers]
-         (split headers #",")))
-    
     (def split-line
-      (λ [line]
-         (binding [*delimiter* \tab]
-           (car (parse-csv line)))))
-    
-    (def map-headers
-      (λ [headers values]
-         (zipmap headers values)))
-    
-    (def join-line
-      (λ [values]
-         (join \tab values)))
+      (λ ([line]
+            (split-line line \tab))
+         ([line delimiter]
+            (binding [*delimiter* delimiter]
+              (car (parse-csv line))))))
     
     (def normalize
       (λ [in-headers out-headers line]
-         (let [header->value (map-headers in-headers (split-line line))]
-           (join-line (map #(get header->value % "") out-headers)))))
+         (let [header->value (zipmap in-headers (split-line line))]
+           (join \tab (map #(get header->value % "") out-headers)))))
     
-    (let [in-headers (headers->list "factual_id,name,address,locality,postcode,country,tel,fax,website,latitude,longitude,category,status,email")
-          out-headers (headers->list "email,harro,status")]
+    (let [in-headers (split-line "factual_id,name,address,locality,postcode,country,tel,fax,website,latitude,longitude,category,status,email" \,)
+          out-headers (split-line "email,harro,status" \,)]
       (debug (?<- (stdout) [!new_line]
                   ((hfs-textline "data.tab") !line)
                   (normalize in-headers out-headers !line :> !new_line)
