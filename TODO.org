@@ -32,28 +32,68 @@
   #+END_QUOTE
 
   #+BEGIN_SRC clojure :tangle cascalog.clj :shebang #!/usr/bin/env clj
+    (use 'clojure.string)
     (use 'add-classpath.core)
     
-    (add-classpath "lib/cascalog*")
-    (add-classpath "lib/hadoop-core*")
-    (add-classpath "lib/commons-logging*")
-    (add-classpath "lib/commons-codec*")
-    (add-classpath "lib/commons-httpclient*")
-    (add-classpath "lib/slf4j*")
-    (add-classpath "lib/debug*")
+    (add-classpath "lib/cascalog-*")
+    (add-classpath "lib/hadoop-core-*")
+    (add-classpath "lib/commons-logging-*")
+    (add-classpath "lib/commons-codec-*")
+    (add-classpath "lib/commons-httpclient-*")
+    (add-classpath "lib/slf4j-*")
+    (add-classpath "lib/debug-*")
+    (add-classpath "lib/lambda-*")
+    (add-classpath "lib/cascalog-commons-*")
+    (add-classpath "lib/clojure-csv-*")
+    (add-classpath "lib/*")
     
     (use 'debug.core)
-    (use 'cascalog.playground)
+    (use 'lambda.core)
+    ;; (use 'cascalog.playground)
+    (use 'cascalog.api)
+    (use 'cascalog-commons.core)
+    (use 'clojure-csv.core)
+    (use 'cadr.core)
     
     (bootstrap)
-    (debug (?<- (stdout)
-                [?person ?age]
-                (age ?person ?age)
-                (< ?age 30))
-           (?<- (stdout) 
-                [!line]
-                ((hfs-textline "data.tab") !line)
-                (:distinct false)))
+    ;; (debug (?<- (stdout)
+    ;;             [?person ?age]
+    ;;             (age ?person ?age)
+    ;;             (< ?age 30))
+    ;;        (?<- (stdout) 
+    ;;             [!line]
+    ;;             ((hfs-textline "data.tab") !line)
+    ;;             (:distinct false)))
+    
+    (def headers->list
+      (λ [headers]
+         (split headers #",")))
+    
+    (def split-line
+      (λ [line]
+         (binding [*delimiter* \tab]
+           (car (parse-csv line)))))
+    
+    (def map-headers
+      (λ [headers values]
+         (zipmap headers values)))
+    
+    (def join-line
+      (λ [values]
+         (join \tab values)))
+    
+    (def normalize
+      (λ [in-headers out-headers line]
+         (let [header->value (map-headers in-headers (split-line line))]
+           (join-line (map #(get header->value % "") out-headers)))))
+    
+    (let [in-headers (headers->list "factual_id,name,address,locality,postcode,country,tel,fax,website,latitude,longitude,category,status,email")
+          out-headers (headers->list "email,harro,status")]
+      (debug (?<- (stdout) [!new_line]
+                  ((hfs-textline "data.tab") !line)
+                  (normalize in-headers out-headers !line :> !new_line)
+                  (:distinct false))))
+    
   #+END_SRC
 * DONE Parse headers
   CLOSED: [2011-12-05 Mon 11:48]
