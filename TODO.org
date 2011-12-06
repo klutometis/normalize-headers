@@ -45,7 +45,8 @@
     (add-classpath "lib/lambda-*")
     (add-classpath "lib/cascalog-commons-*")
     (add-classpath "lib/clojure-csv-*")
-    (add-classpath "lib/*")
+    (add-classpath "lib/tools.cli-*")
+    (add-classpath "lib/cadr-*")
     
     (use 'debug.core)
     (use 'lambda.core)
@@ -54,6 +55,7 @@
     (use 'cascalog-commons.core)
     (use 'clojure-csv.core)
     (use 'cadr.core)
+    (use 'clojure.tools.cli)
     
     (bootstrap)
     ;; (debug (?<- (stdout)
@@ -67,22 +69,61 @@
     
     (def split-line
       (λ ([line]
-            (split-line line \tab))
+            (split-line line *delimiter*))
          ([line delimiter]
             (binding [*delimiter* delimiter]
               (car (parse-csv line))))))
     
     (def normalize
-      (λ [in-headers out-headers line]
-         (let [header->value (zipmap in-headers (split-line line))]
-           (join \tab (map #(get header->value % "") out-headers)))))
+      (λ [in-headers out-headers line delimiter]
+         (let [header->value (zipmap in-headers (split-line line delimiter))]
+           (join delimiter (map #(get header->value % "") out-headers)))))
     
-    (let [in-headers (split-line "factual_id,name,address,locality,postcode,country,tel,fax,website,latitude,longitude,category,status,email" \,)
-          out-headers (split-line "email,harro,status" \,)]
-      (debug (?<- (stdout) [!new_line]
-                  ((hfs-textline "data.tab") !line)
-                  (normalize in-headers out-headers !line :> !new_line)
-                  (:distinct false))))
+    (let [args '("data-head.tab"
+                 "-i"
+                 "factual_id,name,address,locality,postcode,country,tel,fax,website,latitude,longitude,category,status,email"
+                 "-o"
+                 "email,harro,status"
+                 "-s"
+                 "data-head-normalized.tab"
+                 "-t")]
+      (let [[{sink :sink
+              in-headers :in-headers
+              out-headers :out-headers
+              comma-delimited :comma-delimited
+              tab-delimited :tab-delimited}
+             files
+             usage]
+            (cli args
+                 ["-s" "--sink" "Output to sink (defaults to stdout)"
+                  :name :sink
+                  :default false]
+                 ["-i" "--in-headers" "Input-file headers"
+                  :name :in-headers]
+                 ["-o" "--out-headers" "Output-file headers"
+                  :name :out-headers]
+                 ["-c" "--comma-delimited" "Comma-delimited files"
+                  :name :comma-delimited
+                  :default true
+                  :flag true]
+                 ;; How to set up mutually exclusive flags?
+                 ["-t" "--tab-delimited" "Tab-delimited files"
+                  :name :tab-delimited
+                  :default false
+                  :flag true])]
+        (if (empty? files)
+          (println usage)
+          (let [delimiter (if (and comma-delimited (not tab-delimited)) \, \tab)
+                in-file (car files)
+                sink (if sink
+                       (hfs-textline sink)
+                       (stdout))]
+            (let [in-headers (split-line in-headers \,)
+                  out-headers (split-line out-headers \,)]
+              (?<- sink [!normalized-line]
+                   ((hfs-textline in-file) !line)
+                   (normalize in-headers out-headers !line delimiter :> !normalized-line)
+                   (:distinct false)))))))
     
   #+END_SRC
 * DONE Parse headers
